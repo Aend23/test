@@ -1,4 +1,4 @@
-// Role-based permissions helper
+
 
 type Role = 'ADMIN' | 'EDITOR' | 'VIEWER';
 

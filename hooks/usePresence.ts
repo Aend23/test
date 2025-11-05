@@ -32,6 +32,7 @@ export function usePresence(contactId: string, currentUser: PresenceUser | null)
 
     // Listen for presence updates
     channel.bind("user-joined", (data: PresenceUser) => {
+      if (data.id === currentUser.id) return; // ignore self
       setActiveUsers((prev) => {
         if (prev.find((u) => u.id === data.id)) return prev;
         return [...prev, data];
@@ -39,6 +40,7 @@ export function usePresence(contactId: string, currentUser: PresenceUser | null)
     });
 
     channel.bind("user-left", (data: { userId: string }) => {
+      if (data.userId === currentUser.id) return; // ignore self
       setActiveUsers((prev) => prev.filter((u) => u.id !== data.userId));
     });
 

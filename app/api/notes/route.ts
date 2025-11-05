@@ -1,4 +1,3 @@
-// src/app/api/notes/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { push } from "@/lib/pusher.server";

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MessageComposerEnhanced } from "@/components/MessageComposerEnhanced";
+import { CollaborativeNoteEditor } from "@/components/CollaborativeNoteEditor";
 import { X, Phone, Mail, MessageSquare, StickyNote, Lock, Loader2, Clock, User, Users, Edit, Trash2, Save, XCircle } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { usePresence } from "@/hooks/usePresence";
@@ -84,7 +85,12 @@ export function ContactDrawerEnhanced({ contactId, onClose }: ContactDrawerEnhan
 
   // Real-time presence
   const currentUser = permissions.user
-    ? { id: permissions.user.id, name: permissions.user.name || permissions.user.email, email: permissions.user.email }
+    ? { 
+        id: permissions.user.id, 
+        name: permissions.user.name || permissions.user.email, 
+        email: permissions.user.email,
+        color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)`
+      }
     : null;
   const { activeUsers } = usePresence(contactId, currentUser);
 
@@ -389,15 +395,32 @@ export function ContactDrawerEnhanced({ contactId, onClose }: ContactDrawerEnhan
                         className="p-4 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl border-l-4 border-yellow-400"
                       >
                         {editingNoteId === n.id ? (
-                          // Edit Mode
+                          // Edit Mode with Collaborative Editor
                           <div className="space-y-3">
-                            <textarea
-                              className="w-full px-3 py-2 border-2 border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all text-sm resize-none bg-white"
-                              value={editingNoteBody}
-                              onChange={(e) => setEditingNoteBody(e.target.value)}
-                              rows={3}
-                            />
-                            <div className="flex items-center justify-between">
+                            {currentUser && (
+                              <CollaborativeNoteEditor
+                                contactId={contactId}
+                                initialContent={editingNoteBody}
+                                currentUser={currentUser}
+                                onUpdate={setEditingNoteBody}
+                                placeholder="Edit your note..."
+                                className="border-yellow-300"
+                                value={editingNoteBody}
+                                onSelectionChange={(pos, content) => {
+                                  setCursorPosition(pos);
+                                  // Check for @ mentions based on current content and cursor
+                                  const textBeforeCursor = content.substring(0, pos);
+                                  const match = textBeforeCursor.match(/@(\w*)$/);
+                                  if (match) {
+                                    setMentionQuery(match[1]);
+                                    setShowMentions(true);
+                                  } else {
+                                    setShowMentions(false);
+                                  }
+                                }}
+                              />
+                            )}
+                            <div className="flex items-center justify-between mt-3">
                               <select
                                 className="px-3 py-1 border-2 border-yellow-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-yellow-500 transition-all cursor-pointer"
                                 value={editingNoteVisibility}
@@ -502,47 +525,29 @@ export function ContactDrawerEnhanced({ contactId, onClose }: ContactDrawerEnhan
                   )}
                 </div>
 
-                {/* Add Note Form */}
-                {permissions.canCreateNote ? (
+                {/* Add Note Form with Collaborative Editor */}
+                {permissions.canCreateNote && currentUser ? (
                   <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border-2 border-gray-200 p-4 shadow-sm">
-                    <div className="relative">
-                      <textarea
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm resize-none bg-white"
-                        placeholder="Add a note about this contact... Use @ to mention team members"
-                        value={note}
-                        onChange={handleNoteInput}
-                        rows={3}
-                        data-testid="note-input"
-                      />
-                      
-                      {/* Mentions Dropdown */}
-                      {showMentions && filteredMembers.length > 0 && (
-                        <div className="absolute z-10 mt-1 w-full bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                          {filteredMembers.slice(0, 5).map((member) => (
-                            <button
-                              key={member.id}
-                              type="button"
-                              onClick={() => insertMention(member)}
-                              className="w-full px-4 py-2 text-left hover:bg-indigo-50 transition-colors text-sm flex items-center gap-2"
-                            >
-                              <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                                <User className="w-3 h-3 text-indigo-700" />
-                              </div>
-                              <div>
-                                <div className="font-medium text-gray-900">{member.name || member.email}</div>
-                                {member.name && <div className="text-xs text-gray-500">{member.email}</div>}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <CollaborativeNoteEditor
+                      contactId={contactId}
+                      currentUser={currentUser}
+                      onUpdate={setNote}
+                      placeholder="Add a note about this contact... Use @ to mention team members"
+                      value={note}
+                      onSelectionChange={(pos, content) => {
+                        setCursorPosition(pos);
+                        const textBeforeCursor = content.substring(0, pos);
+                        const match = textBeforeCursor.match(/@(\w*)$/);
+                        if (match) {
+                          setMentionQuery(match[1]);
+                          setShowMentions(true);
+                        } else {
+                          setShowMentions(false);
+                        }
+                      }}
+                    />
                     
-                    <div className="mt-3 text-xs text-gray-500 italic">
-                      💡 Tip: Real-time collaborative editing is enabled. Other team members viewing this contact can see your changes in real-time!
-                    </div>
-                    
-                    <div className="flex justify-between items-center mt-3">
+                    <div className="flex justify-between items-center mt-4">
                       <select
                         className="px-4 py-2 border-2 border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 transition-all cursor-pointer"
                         value={visibility}
@@ -571,6 +576,28 @@ export function ContactDrawerEnhanced({ contactId, onClose }: ContactDrawerEnhan
                         )}
                       </button>
                     </div>
+
+                    {/* Mentions Dropdown for fallback */}
+                    {showMentions && filteredMembers.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredMembers.slice(0, 5).map((member) => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => insertMention(member)}
+                            className="w-full px-4 py-2 text-left hover:bg-indigo-50 transition-colors text-sm flex items-center gap-2"
+                          >
+                            <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
+                              <User className="w-3 h-3 text-indigo-700" />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{member.name || member.email}</div>
+                              {member.name && <div className="text-xs text-gray-500">{member.email}</div>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 text-center">

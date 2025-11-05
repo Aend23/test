@@ -1,15 +1,7 @@
-// Pusher channel authorization endpoint
+// Pusher authentication endpoint for private channels
 import { NextRequest, NextResponse } from "next/server";
+import { pusherServer } from "@/lib/pusher.server";
 import { getCurrentUser } from "@/lib/auth";
-import Pusher from "pusher";
-
-const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID || "",
-  key: process.env.PUSHER_KEY || "",
-  secret: process.env.PUSHER_SECRET || "",
-  cluster: process.env.PUSHER_CLUSTER || "us2",
-  useTLS: true,
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,27 +12,33 @@ export async function POST(req: NextRequest) {
 
     const body = await req.text();
     const params = new URLSearchParams(body);
-    const socketId = params.get("socket_id");
-    const channelName = params.get("channel_name");
+    const socketId = params.get("socket_id")!;
+    const channelName = params.get("channel_name")!;
 
-    if (!socketId || !channelName) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+    // Validate channel access based on user permissions
+    if (
+      channelName.startsWith("private-note-") ||
+      channelName.startsWith("presence-note-") ||
+      channelName.startsWith("presence-contact-")
+    ) {
+      const authResponse = pusherServer.authorizeChannel(socketId, channelName, {
+        user_id: user.id,
+        user_info: {
+          id: user.id,
+          name: user.name || user.email,
+          email: user.email,
+          role: user.role,
+          color: `hsl(${Math.floor(Math.random() * 360)}, 70%, 50%)` // Random color for cursor
+        }
+      });
+      return NextResponse.json(authResponse);
     }
 
-    // Authorize the user for this channel
-    const auth = pusher.authorizeChannel(socketId, channelName, {
-      user_id: user.id,
-      user_info: {
-        name: user.name || user.email,
-        email: user.email,
-      },
-    });
-
-    return NextResponse.json(auth);
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   } catch (error: unknown) {
     console.error("Pusher auth error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Authorization failed" },
+      { error: error instanceof Error ? error.message : "Authentication failed" },
       { status: 500 }
     );
   }

@@ -1,4 +1,3 @@
-// src/lib/auth.ts
 import { auth } from "./auth-config";
 import { headers } from "next/headers";
 import { prisma } from "./prisma";

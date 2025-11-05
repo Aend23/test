@@ -19,7 +19,7 @@ export function usePermissions() {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const role = user?.role || 'VIEWER';
+  const role = user?.user.role || 'VIEWER';
 
   return {
     user,

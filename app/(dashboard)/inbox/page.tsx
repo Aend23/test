@@ -57,9 +57,10 @@ export default function InboxPage() {
     );
   };
 
-  // Combine regular messages and scheduled messages for "scheduled" filter
-  const combinedMessages = filter === "scheduled" 
-    ? scheduledMessages
+  // Combine regular messages and scheduled messages based on filter
+  const combinedMessages = (() => {
+    if (filter === "scheduled") {
+      return scheduledMessages
         .filter((sm) => sm.status === "PENDING")
         .map((sm) => ({
           id: sm.id,
@@ -70,8 +71,12 @@ export default function InboxPage() {
           isRead: true,
           isScheduled: true,
           contact: sm.contact,
-        }))
-    : messages || [];
+        }));
+    } else {
+      // For "all" and "unread" filters, show regular messages
+      return messages || [];
+    }
+  })();
 
   const filteredMessages = combinedMessages.filter((m: any) => {
     // Apply search filter first
@@ -91,7 +96,7 @@ export default function InboxPage() {
     if (filter === "scheduled") {
       return m.isScheduled === true;
     }
-    // "all" filter
+    // "all" filter - show all messages
     return true;
   });
 
@@ -110,12 +115,12 @@ export default function InboxPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 to-gray-100">
       <div className="max-w-7xl mx-auto p-6" data-testid="inbox-page">
         {/* Header */}
         <div className="mb-6 animate-fadeIn">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-linear-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
               <InboxIcon className="w-6 h-6 text-white" />
             </div>
             <div>
